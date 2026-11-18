@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#061923">
+<title>MP Inventory Code - Master X</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#061923;color:#f4f8fa;font-family:Arial,sans-serif}.app{max-width:760px;margin:auto;padding:14px}header,.card{background:#0c2a36;border:1px solid #236078;border-radius:18px;padding:16px;margin-bottom:14px}h1{margin:0;color:#00dff5;font-size:26px}.sub{margin:8px 0;color:#b9cbd2}.status{padding:10px;border-radius:10px;background:#0b3a37;color:#16e98f;font-weight:bold}h2{font-size:20px}label{display:block;margin:10px 0 5px;color:#b7cbd4;font-weight:bold}input,textarea{width:100%;padding:13px;border-radius:11px;border:1px solid #2c6478;background:#051820;color:white;font-size:16px}textarea{min-height:80px}button{width:100%;margin-top:10px;padding:14px;border:0;border-radius:11px;background:#00e28b;color:#03221a;font-weight:900;font-size:15px}.blue{background:#00d8f2;color:#032029}.dark{background:#174457;color:white}.danger{background:#ff5274;color:white}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.preview{display:none;margin-top:12px;width:100%;max-height:320px;object-fit:contain;background:#000;border-radius:10px}.item{margin-top:10px;padding:12px;border:1px solid #2b6175;border-radius:12px;background:#061a23}.oem{color:#00dff5;font-weight:bold}.muted{color:#a9bec7;font-size:13px;line-height:1.45}.empty{padding:18px;text-align:center;color:#9ab2bc;border:1px dashed #355f70;border-radius:12px;margin-top:10px}@media(max-width:520px){.row{grid-template-columns:1fr}h1{font-size:22px}}@media print{header,.input-card,.controls{display:none!important}body,.card{background:white;color:black}.item,.oem,.muted{color:black}}
+</style>
+</head>
+<body>
+<main class="app">
+<header><h1>MP INVENTORY CODE</h1><div class="sub">Master X - prova mobile inventario fotografico</div><div id="status" class="status">Sistema pronto</div></header>
+<section class="card input-card">
+<h2>Acquisizione & rilevamento</h2>
+<p class="muted">Scatta o scegli una fotografia. La versione di prova archivia la foto e i dati; il riconoscimento AI automatico del ricambio sara collegato nel modulo successivo.</p>
+<input id="camera" type="file" accept="image/*" capture="environment" hidden>
+<input id="gallery" type="file" accept="image/*" hidden>
+<div class="row"><button id="cameraBtn" class="blue" type="button">ATTIVA FOTOCAMERA</button><button id="galleryBtn" class="dark" type="button">ARCHIVIO FOTO</button></div>
+<img id="preview" class="preview" alt="Anteprima fotografia">
+<label for="tipo">Tipo ricambio / conferma manuale</label><input id="tipo" placeholder="Esempio: parafango">
+<label for="oem">Codice OEM</label><input id="oem" placeholder="Esempio: 26296FE100">
+<div class="row"><div><label for="qty">Quantita</label><input id="qty" type="number" min="1" value="1"></div><div><label for="pos">Ubicazione</label><input id="pos" placeholder="A-03-02"></div></div>
+<label for="note">Note tecniche</label><textarea id="note" placeholder="Lato, condizioni, veicolo, osservazioni"></textarea>
+<button id="addBtn" type="button">CARICA IN INVENTARIO</button>
+</section>
+<section class="card"><h2>Inventario reattivo</h2><input id="search" placeholder="Cerca OEM, ricambio o ubicazione"><div id="list"></div><div class="controls row"><button id="printBtn" class="blue" type="button">STAMPA</button><button id="csvBtn" class="blue" type="button">ESPORTA CSV</button><button id="shareBtn" class="dark" type="button">CONDIVIDI</button><button id="emailBtn" class="dark" type="button">EMAIL</button><button id="backupBtn" class="dark" type="button">BACKUP</button><button id="resetBtn" class="danger" type="button">RESET</button></div></section>
+</main>
+<script>
+'use strict';
+const KEY='mp_inventory_test_v1';let data=[];let photo='';
+const $=id=>document.getElementById(id);const status=m=>{$('status').textContent=m};
+function load(){try{data=JSON.parse(localStorage.getItem(KEY)||'[]');if(!Array.isArray(data))data=[]}catch(e){data=[]}render()}
+function save(){localStorage.setItem(KEY,JSON.stringify(data));render()}
+function image(file){if(!file)return;const r=new FileReader();r.onload=e=>{const img=new Image();img.onload=()=>{const max=1000;let w=img.width,h=img.height;if(w>h&&w>max){h=Math.round(h*max/w);w=max}else if(h>max){w=Math.round(w*max/h);h=max}const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);photo=c.toDataURL('image/jpeg',.7);$('preview').src=photo;$('preview').style.display='block';status('Fotografia acquisita')};img.src=e.target.result};r.readAsDataURL(file)}
+function add(){const tipo=$('tipo').value.trim();if(!tipo){status('Inserisci o conferma il tipo di ricambio');return}data.unshift({id:Date.now(),tipo,oem:$('oem').value.trim().toUpperCase(),qty:Math.max(1,parseInt($('qty').value)||1),pos:$('pos').value.trim().toUpperCase(),note:$('note').value.trim(),photo,date:new Date().toLocaleString('it-IT')});try{save()}catch(e){data.shift();status('Memoria piena: prova senza foto o crea un backup');return}$('tipo').value='';$('oem').value='';$('qty').value='1';$('pos').value='';$('note').value='';photo='';$('preview').removeAttribute('src');$('preview').style.display='none';status('Ricambio archiviato')}
+function render(){const q=$('search').value.toLowerCase();const rows=data.filter(x=>[x.tipo,x.oem,x.pos,x.note].join(' ').toLowerCase().includes(q));$('list').innerHTML='';if(!rows.length){$('list').innerHTML='<div class="empty">Inventario vuoto o nessun risultato</div>';return}rows.forEach(x=>{const d=document.createElement('div');d.className='item';d.innerHTML='<strong>'+esc(x.tipo)+'</strong><div class="oem">OEM: '+esc(x.oem||'non inserito')+'</div><div class="muted">Q.ta '+x.qty+' - Ubicazione: '+esc(x.pos||'non inserita')+'<br>'+esc(x.note||'')+'<br>'+esc(x.date)+'</div>';if(x.photo){const im=document.createElement('img');im.src=x.photo;im.className='preview';im.style.display='block';d.appendChild(im)}const b=document.createElement('button');b.type='button';b.className='danger';b.textContent='ELIMINA';b.onclick=()=>{if(confirm('Eliminare questo articolo?')){data=data.filter(y=>y.id!==x.id);save()}};d.appendChild(b);$('list').appendChild(d)})}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function text(){return 'MP INVENTORY CODE\n\n'+data.map((x,i)=>(i+1)+'. '+x.tipo+' | OEM '+(x.oem||'-')+' | Q.ta '+x.qty+' | '+(x.pos||'-')).join('\n')}
+function download(name,content,type){const u=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+$('cameraBtn').onclick=()=>$('camera').click();$('galleryBtn').onclick=()=>$('gallery').click();$('camera').onchange=e=>image(e.target.files[0]);$('gallery').onchange=e=>image(e.target.files[0]);$('addBtn').onclick=add;$('search').oninput=render;$('printBtn').onclick=()=>print();
+$('csvBtn').onclick=()=>{const c='Tipo;OEM;Quantita;Ubicazione;Note\n'+data.map(x=>[x.tipo,x.oem,x.qty,x.pos,x.note].map(v=>'"'+String(v||'').replace(/"/g,'""')+'"').join(';')).join('\n');download('MP_Inventory.csv','\uFEFF'+c,'text/csv;charset=utf-8')};
+$('shareBtn').onclick=async()=>{if(navigator.share){try{await navigator.share({title:'MP Inventory Code',text:text()})}catch(e){}}else{status('Condivisione non disponibile su questo dispositivo')}};$('emailBtn').onclick=()=>location.href='mailto:?subject='+encodeURIComponent('MP Inventory Code')+'&body='+encodeURIComponent(text());$('backupBtn').onclick=()=>download('MP_Inventory_Backup.json',JSON.stringify({articoli:data},null,2),'application/json');$('resetBtn').onclick=()=>{if(confirm('Azzerare tutto inventario?')){data=[];localStorage.removeItem(KEY);render();status('Inventario azzerato')}};load();
+</script>
+</body>
+</html>
